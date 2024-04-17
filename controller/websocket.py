@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
 import boto3
 import os
-from utils.bot import claude2_bot, claude3_bot
+from utils.bot import claude2_bot, claude3_bot, mistral7b_bot
 
 
 ws_router = APIRouter()
@@ -11,7 +11,7 @@ bedrock = boto3.client(service_name="bedrock-runtime")
 
 
 patterns = {
-    "redbook": "你是一个时尚的年轻人，喜欢用emoji，请根据下面的内容写一段小红书的种草文案: ",
+    "redbook": "你是一个时尚的年轻人，喜欢用emoji，请根据下面的内容写一段中文的小红书的种草文案。要求HashTag数量不超过5个: ",
     "zhihu": "你是一个知识博学的学者，请根据下面的内容写一段文章，发表在知乎上: ",
     "weibo": "请根据下面的内容写一段微博的短文，140 字以内: ",
     "gongzhonghao": "你是一名思想者，请根据下面的内容写一段公众号的文章: ",
@@ -58,6 +58,8 @@ async def chat_bot(websocket: WebSocket):
             elif model_id == "bedrock_claude3":
                 # await ask_bedrock_claude2(websocket, prompt, history)
                 await claude3_bot(bedrock, websocket, prompt, history)
+            elif model_id == "mistral_7b":
+                await mistral7b_bot(bedrock, websocket, prompt, history)
     except WebSocketDisconnect:
         print(f"Client left")
 

@@ -78,6 +78,36 @@ async def claude3_bot(bedrock, websocket, prompt: str, history):
         await websocket.send_text(result_end)
 
 
+async def mistral7b_bot(bedrock, websocket, prompt: str, history):
+    accept = "*/*"
+    contentType = "application/json"
+    modelId = "mistral.mistral-7b-instruct-v0:2"
+    # Mistral instruct models provide optimal results when
+    # embedding the prompt into the following template:
+    # instruction = f"<s>[INST] {prompt} [/INST]"
+
+    body = json.dumps(
+        {
+            "prompt": mistral_combine_history(history, prompt),
+            "max_tokens": 5000
+        }
+    )
+
+    response = bedrock.invoke_model(
+        body=body,
+        modelId=modelId,
+    )
+
+    response_body = json.loads(response.get('body').read())
+    outputs = response_body.get("outputs")
+    completions = [output["text"] for output in outputs]
+    print("completions:", completions)
+    await websocket.send_text(completions)
+
+    result_end = '{"status": "done"}'
+    await websocket.send_text(result_end)
+
+
 def claude_combine_history(history, newQ):
     if not history:
         return "Human:{prompt} \\n\\nAssistant:".format(prompt=newQ)
@@ -87,4 +117,16 @@ def claude_combine_history(history, newQ):
         prompt = prompt + "Human:{q}\\n\\nAssistant:{a}\\n\\n".format(q=q, a=a)
     prompt = prompt + "Human:{prompt} \\n\\nAssistant:".format(prompt=newQ)
     # print(prompt)
+    return prompt
+
+
+def mistral_combine_history(history, newQ):
+    if not history:
+        return "<s>[INST] {prompt} [/INST]".format(prompt=newQ)
+
+    prompt = ""
+    for [q, a] in history:
+        prompt = prompt + ("<s>[INST] {q} [/INST]"
+                           "{a}").format(q=q, a=a)
+    prompt = prompt + "<s>[INST] {prompt} [/INST]".format(prompt=newQ)
     return prompt
