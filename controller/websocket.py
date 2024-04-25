@@ -52,6 +52,8 @@ async def chat_bot(websocket: WebSocket):
 
             if model_id == "chatglm2":
                 await ask_chatglm2(websocket, prompt, history)
+            elif model_id == "chatglm3":
+                await ask_chatglm3(websocket, prompt, history)
             elif model_id == "bedrock_claude2":
                 # await ask_bedrock_claude2(websocket, prompt, history)
                 await claude2_bot(bedrock, websocket, prompt, history)
@@ -69,6 +71,35 @@ async def ask_chatglm2(websocket: WebSocket, prompt: str, history):
 
     response_model = smr.invoke_endpoint_with_response_stream(
         EndpointName="chatglm2-lmi-model",
+        Body=json.dumps(
+            {"inputs": prompt, "parameters": parameters, "history": history}
+        ),
+        ContentType="application/json",
+    )
+    stream = response_model.get("Body")
+    if stream:
+        chunk_str_full = ""
+        for event in stream:
+            chunk = event.get("PayloadPart")
+            if chunk:
+                chunk_str_full = chunk_str_full + chunk.get("Bytes").decode()
+                # print(chunk_str_full)
+                if chunk_str_full.strip().endswith(
+                    "]}}"
+                ) and chunk_str_full.strip().startswith("{"):
+                    chunk_obj = json.loads(chunk_str_full)
+                    result = chunk_obj["outputs"]["outputs"]
+                    chunk_str_full = ""
+                    await websocket.send_text(result)
+
+    result_end = '{"status": "done"}'
+    await websocket.send_text(result_end)
+
+async def ask_chatglm3(websocket: WebSocket, prompt: str, history):
+    parameters = {"max_length": 4092, "temperature": 0.01, "top_p": 0.8}
+
+    response_model = smr.invoke_endpoint_with_response_stream(
+        EndpointName="chatglm3-lmi-model",
         Body=json.dumps(
             {"inputs": prompt, "parameters": parameters, "history": history}
         ),
