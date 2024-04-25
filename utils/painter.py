@@ -37,7 +37,9 @@ def inpaint(item: dict):
         }
     )
 
-    prompt = translate(get_str(item, "prompt", None))
+    prompt_cn = get_str(item, "prompt", None).split(", ")
+    prompt_cn[1] = translate(prompt_cn[1])
+    prompt = ", ".join(prompt_cn)
     negative_prompt = translate(get_str(item, "negative_prompt", None))
 
     steps = get_int(item, "steps", 30)
