@@ -66,40 +66,59 @@ async def chat_bot(websocket: WebSocket):
         print(f"Client left")
 
 
-async def ask_chatglm2(websocket: WebSocket, prompt: str, history):
+def build_prompt_chatglm3(question, history):
+    prompt = ""
+    for [q, a] in history:
+        prompt += f"\n\n用户：{q}"
+        prompt += f"\n\nChatGLM3-6B：{a}"
+
+    prompt += f"\n\n用户：{question}"
+    prompt += f"\n\nChatGLM3-6B："
+    return prompt
+
+
+async def ask_chatglm3(websocket: WebSocket, prompt: str, history):
     parameters = {"max_length": 4092, "temperature": 0.01, "top_p": 0.8}
 
+    prompt = build_prompt_chatglm3(prompt, history)
+    print(prompt)
+    history = []
+
     response_model = smr.invoke_endpoint_with_response_stream(
-        EndpointName="chatglm2-lmi-model",
+        EndpointName="chatglm3-lmi-model",
         Body=json.dumps(
             {"inputs": prompt, "parameters": parameters, "history": history}
         ),
         ContentType="application/json",
     )
     stream = response_model.get("Body")
+
     if stream:
         chunk_str_full = ""
         for event in stream:
             chunk = event.get("PayloadPart")
             if chunk:
-                chunk_str_full = chunk_str_full + chunk.get("Bytes").decode()
-                # print(chunk_str_full)
+                chunk_now = chunk.get("Bytes").decode()
+                chunk_str_full = chunk_str_full + chunk_now
                 if chunk_str_full.strip().endswith(
                     "]}}"
                 ) and chunk_str_full.strip().startswith("{"):
+                    # print(chunk_str_full)
                     chunk_obj = json.loads(chunk_str_full)
+                    # print(chunk_obj)
                     result = chunk_obj["outputs"]["outputs"]
+                   
                     chunk_str_full = ""
                     await websocket.send_text(result)
 
     result_end = '{"status": "done"}'
     await websocket.send_text(result_end)
 
-async def ask_chatglm3(websocket: WebSocket, prompt: str, history):
+async def ask_chatglm2(websocket: WebSocket, prompt: str, history):
     parameters = {"max_length": 4092, "temperature": 0.01, "top_p": 0.8}
 
     response_model = smr.invoke_endpoint_with_response_stream(
-        EndpointName="chatglm3-lmi-model",
+        EndpointName="chatglm2-lmi-model",
         Body=json.dumps(
             {"inputs": prompt, "parameters": parameters, "history": history}
         ),
